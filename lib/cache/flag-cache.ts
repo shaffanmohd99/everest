@@ -20,7 +20,7 @@ export function getCachedFlag(
   fetcher: () => Promise<FeatureFlagDoc | null>
 ) {
   const cached = flagCache.get(key);
-  if (isFresh(cached)) {
+  if (isFresh(cached) && cached) {
     return Promise.resolve(cached.value);
   }
 
@@ -37,7 +37,7 @@ export function getCachedOverrides(
   fetcher: () => Promise<OverrideDoc[]>
 ) {
   const cached = overrideCache.get(key);
-  if (isFresh(cached)) {
+  if (isFresh(cached) && cached) {
     return Promise.resolve(cached.value);
   }
 

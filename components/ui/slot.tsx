@@ -18,15 +18,18 @@ type SlotProps = React.HTMLAttributes<HTMLElement> & {
 };
 
 const Slot = React.forwardRef<HTMLElement, SlotProps>(({ children, ...props }, ref) => {
-  const mergedRef = composeRefs(ref, (children as { ref?: React.Ref<HTMLElement> }).ref);
+  const child = children as React.ReactElement<any>;
+  const mergedRef = composeRefs(ref, (child as { ref?: React.Ref<HTMLElement> }).ref);
+  const childClassName = (child.props as { className?: string }).className;
 
-  return React.cloneElement(children as React.ReactElement, {
-    ...props,
-    ref: mergedRef,
-    className: [props.className, (children as React.ReactElement).props.className]
-      .filter(Boolean)
-      .join(" "),
-  } as React.HTMLAttributes<HTMLElement>);
+  return React.cloneElement(
+    child,
+    {
+      ...props,
+      ref: mergedRef,
+      className: [props.className, childClassName].filter(Boolean).join(" "),
+    } as React.HTMLAttributes<HTMLElement>
+  );
 });
 
 Slot.displayName = "Slot";
