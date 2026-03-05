@@ -1,36 +1,88 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Feature Flag Engine
 
-## Getting Started
+A minimal feature flag system built with Next.js + MongoDB. Supports global defaults, user/group/region overrides, and runtime evaluation with predictable precedence.
 
-First, run the development server:
+## Quick Start
+
+1. Install dependencies
+
+```bash
+npm install
+```
+
+2. Configure environment
+
+Create a `.env.local` file:
+
+```
+MONGODB_URI="<your-mongodb-connection-string>"
+```
+
+3. Run the app
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open the admin UI at `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## API Overview
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `GET /api/flags` list all feature flags
+- `POST /api/flags` create a feature flag
+- `GET /api/flags/:key` get a flag + overrides
+- `PATCH /api/flags/:key` update global state/description
+- `DELETE /api/flags/:key` delete a flag
+- `POST /api/flags/:key/overrides` create an override
+- `PATCH /api/overrides/:id` update override
+- `DELETE /api/overrides/:id` delete override
+- `POST /api/evaluate` evaluate a flag for a context
 
-## Learn More
+## Evaluation Precedence
 
-To learn more about Next.js, take a look at the following resources:
+When evaluating a feature:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. If a **user** override exists, use it
+2. Else if a **group** override exists, use it
+3. Else if a **region** override exists, use it
+4. Otherwise use the **global default**
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Example Evaluation Payload
 
-## Deploy on Vercel
+```json
+{
+  "key": "new_checkout",
+  "userId": "u_123",
+  "groupId": "g_premium",
+  "region": "EU"
+}
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Assumptions
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- No authentication (single-user proof of concept).
+- Overrides are unique per `(featureKey, type, target)`.
+- Region overrides are treated with lower precedence than user/group overrides.
+
+## Tradeoffs
+
+- In-memory cache is short-lived and not shared across server instances.
+- No advanced targeting rules (percentage rollouts, attributes).
+- No tests included yet (timeboxed weekend scope).
+
+## Known Limitations / Rough Edges
+
+- Cache invalidation happens only on mutations within the same instance.
+- UI is intentionally minimal and admin-focused.
+
+## What I’d Do Next With More Time
+
+- Add unit tests for evaluation precedence and edge cases.
+- Add authentication + roles.
+- Add SDK client and CLI.
+- Support percentage rollouts and attribute-based targeting.
+
+## Deployment (Vercel)
+
+- Set `MONGODB_URI` in Vercel Environment Variables.
+- Deploy as a standard Next.js app.
