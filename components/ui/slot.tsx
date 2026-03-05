@@ -14,21 +14,19 @@ function composeRefs<T>(...refs: Array<React.Ref<T> | undefined>) {
 }
 
 type SlotProps = React.HTMLAttributes<HTMLElement> & {
-  children?: React.ReactElement;
+  children: React.ReactElement;
 };
 
 const Slot = React.forwardRef<HTMLElement, SlotProps>(({ children, ...props }, ref) => {
-  if (!React.isValidElement(children)) {
-    return null;
-  }
-
   const mergedRef = composeRefs(ref, (children as { ref?: React.Ref<HTMLElement> }).ref);
 
-  return React.cloneElement(children, {
+  return React.cloneElement(children as React.ReactElement, {
     ...props,
     ref: mergedRef,
-    className: [props.className, children.props.className].filter(Boolean).join(" "),
-  });
+    className: [props.className, (children as React.ReactElement).props.className]
+      .filter(Boolean)
+      .join(" "),
+  } as React.HTMLAttributes<HTMLElement>);
 });
 
 Slot.displayName = "Slot";
