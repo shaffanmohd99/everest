@@ -1,53 +1,145 @@
 # Feature Flag Engine
 
-A minimal feature flag system built with Next.js + MongoDB. Supports global defaults, user/group/region overrides, and runtime evaluation with predictable precedence.
+## 1. Run Locally
 
-## Quick Start
+### Prerequisites
+- Node.js 20+
+- npm 10+
+- MongoDB Atlas cluster (or local MongoDB instance)
 
+### Steps
 1. Install dependencies
 
 ```bash
 npm install
 ```
 
-2. Configure environment
+2. Create `.env.local`
 
-Create a `.env.local` file:
-
-```
+```bash
 MONGODB_URI="<your-mongodb-connection-string>"
 ```
 
-3. Run the app
+3. Start the app
 
 ```bash
 npm run dev
 ```
 
-Open the admin UI at `http://localhost:3000`.
+4. Open the app
+- Admin dashboard: `http://localhost:3000`
+- Evaluation page: `http://localhost:3000/evaluate`
 
-## API Overview
+## 2. Documentation
 
-- `GET /api/flags` list all feature flags
-- `POST /api/flags` create a feature flag
-- `GET /api/flags/:key` get a flag + overrides
-- `PATCH /api/flags/:key` update global state/description
-- `DELETE /api/flags/:key` delete a flag
-- `POST /api/flags/:key/overrides` create an override
-- `PATCH /api/overrides/:id` update override
-- `DELETE /api/overrides/:id` delete override
-- `POST /api/evaluate` evaluate a flag for a context
+### 2.1 High-Level Overview
+This app is a simplified feature flag engine.
 
-## Evaluation Precedence
+It lets you:
+- Define feature flags with a global default state.
+- Add overrides for `user`, `group`, and `region`.
+- Evaluate a feature at runtime using context inputs.
 
-When evaluating a feature:
+Evaluation precedence:
+1. `user` override
+2. `group` override
+3. `region` override
+4. global default
 
-1. If a **user** override exists, use it
-2. Else if a **group** override exists, use it
-3. Else if a **region** override exists, use it
-4. Otherwise use the **global default**
+### 2.2 Tech Stack
+- Framework: Next.js (App Router, Route Handlers)
+- Language: TypeScript
+- Database: MongoDB
+- ODM: Mongoose
+- Validation: Zod
+- UI: Tailwind CSS + reusable shadcn-style components
+- Deployment: Vercel
 
-## Example Evaluation Payload
+### 2.3 Model Schemas
+
+#### FeatureFlag
+- `key: string` (required, unique, trimmed)
+- `defaultState: boolean` (required)
+- `description: string` (optional, defaults to empty)
+- `createdAt`, `updatedAt` (timestamps)
+
+#### Override
+- `featureKey: string` (required, indexed)
+- `type: "user" | "group" | "region"` (required)
+- `target: string` (required)
+- `state: boolean` (required)
+- `createdAt`, `updatedAt` (timestamps)
+
+Unique compound index on override:
+- `(featureKey, type, target)`
+
+### 2.4 API Routes
+
+#### Flags
+- `GET /api/flags`
+- Description: List all flags.
+
+- `POST /api/flags`
+- Description: Create a new flag.
+- Body:
+
+```json
+{
+  "key": "new_checkout",
+  "defaultState": false,
+  "description": "Enable the new checkout flow"
+}
+```
+
+#### Single Flag
+- `GET /api/flags/:key`
+- Description: Get a single flag and all its overrides.
+
+- `PATCH /api/flags/:key`
+- Description: Update global default state and/or description.
+- Body:
+
+```json
+{
+  "defaultState": true,
+  "description": "Updated description"
+}
+```
+
+- `DELETE /api/flags/:key`
+- Description: Delete the flag and its related overrides.
+
+#### Overrides
+- `POST /api/flags/:key/overrides`
+- Description: Create an override for a flag.
+- Body:
+
+```json
+{
+  "type": "user",
+  "target": "u_123",
+  "state": true
+}
+```
+
+- `PATCH /api/overrides/:id`
+- Description: Update an existing override.
+- Body:
+
+```json
+{
+  "target": "u_456",
+  "state": false
+}
+```
+
+- `DELETE /api/overrides/:id`
+- Description: Delete an override.
+
+#### Evaluation
+- `POST /api/evaluate`
+- Description: Evaluate whether a feature is enabled for a given context.
+- Body:
 
 ```json
 {
@@ -58,31 +150,82 @@ When evaluating a feature:
 }
 ```
 
-## Assumptions
+- Response:
 
-- No authentication (single-user proof of concept).
-- Overrides are unique per `(featureKey, type, target)`.
-- Region overrides are treated with lower precedence than user/group overrides.
+```json
+{
+  "key": "new_checkout",
+  "enabled": true,
+  "reason": "user",
+  "matchedOverride": {
+    "featureKey": "new_checkout",
+    "type": "user",
+    "target": "u_123",
+    "state": true
+  }
+}
+```
 
-## Tradeoffs
+### 2.5 Architecture Design
 
-- In-memory cache is short-lived and not shared across server instances.
-- No advanced targeting rules (percentage rollouts, attributes).
-- No tests included yet (timeboxed weekend scope).
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User
+    participant FE as Next.js Frontend (Admin/Evaluate)
+    participant FlagsAPI as /api/flags & /api/flags/:key
+    participant OverridesAPI as /api/flags/:key/overrides & /api/overrides/:id
+    participant EvalAPI as /api/evaluate
+    participant DB as MongoDB
 
-## Known Limitations / Rough Edges
+    User->>FE: Open Admin Dashboard
+    FE->>FlagsAPI: GET /api/flags
+    FlagsAPI->>DB: Read all feature flags
+    DB-->>FlagsAPI: flags[]
+    FlagsAPI-->>FE: JSON list
+    FE-->>User: Show flags table
 
-- Cache invalidation happens only on mutations within the same instance.
-- UI is intentionally minimal and admin-focused.
+    User->>FE: Create or update flag
+    FE->>FlagsAPI: POST/PATCH /api/flags...
+    FlagsAPI->>DB: Write feature flag
+    FlagsAPI->>Cache: Invalidate flag/override cache
+    FlagsAPI-->>FE: Updated flag response
+    FE-->>User: Show latest state
 
-## What I’d Do Next With More Time
+    User->>FE: Add/update/delete override
+    FE->>OverridesAPI: POST/PATCH/DELETE override routes
+    OverridesAPI->>DB: Write override
+    OverridesAPI->>Cache: Invalidate override cache
+    OverridesAPI-->>FE: Mutation result
+    FE-->>User: Show latest overrides
 
-- Add unit tests for evaluation precedence and edge cases.
-- Add authentication + roles.
-- Add SDK client and CLI.
-- Support percentage rollouts and attribute-based targeting.
+    User->>FE: Open Evaluate Page and submit context
+    FE->>EvalAPI: POST /api/evaluate {key,userId,groupId,region}
+    EvalAPI->>DB: Read feature flag by key
+    DB-->>EvalAPI: Flag + default state
+    EvalAPI->>DB: Read all overrides for key
+    DB-->>EvalAPI: Overrides[]
+    alt User override exists
+      EvalAPI-->>FE: enabled/disabled by user
+    else Group override exists
+      EvalAPI-->>FE: enabled/disabled by group
+    else Region override exists
+      EvalAPI-->>FE: enabled/disabled by region
+    else No override matched
+      EvalAPI-->>FE: use global default state
+    end
+    FE-->>User: Show enabled/disabled and source (user/group/region/default)
+```
 
-## Deployment (Vercel)
+### Notes
+- Caching is in-memory and instance-local.
+- In serverless environments, cache is best-effort and short-lived.
+- This project is intentionally auth-free for assignment scope.
+- Unit tests were skipped due to time constraints and limited familiarity, with focus placed on delivering the full end-to-end feature set.
 
-- Set `MONGODB_URI` in Vercel Environment Variables.
-- Deploy as a standard Next.js app.
+## 3. If I Had More Time
+- Add authentication and role-based access control (admin/editor/viewer).
+- Add unit tests for core evaluation logic and API routes (especially precedence and edge cases).
+- Add percentage rollouts (for gradual release strategies).
+- Add audit logs for all flag and override mutations.
+- Add monitoring and alerting for API errors and evaluation latency.
