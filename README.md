@@ -188,14 +188,12 @@ sequenceDiagram
     User->>FE: Create or update flag
     FE->>FlagsAPI: POST/PATCH /api/flags...
     FlagsAPI->>DB: Write feature flag
-    FlagsAPI->>Cache: Invalidate flag/override cache
     FlagsAPI-->>FE: Updated flag response
     FE-->>User: Show latest state
 
     User->>FE: Add/update/delete override
     FE->>OverridesAPI: POST/PATCH/DELETE override routes
     OverridesAPI->>DB: Write override
-    OverridesAPI->>Cache: Invalidate override cache
     OverridesAPI-->>FE: Mutation result
     FE-->>User: Show latest overrides
 
@@ -216,6 +214,21 @@ sequenceDiagram
     end
     FE-->>User: Show enabled/disabled and source (user/group/region/default)
 ```
+
+### 2.6 AI Usage Disclosure
+- This project was built with assistance from Codex.
+- The core product direction, stack choice, and implementation plan were defined by me.
+- I used AI as a coding assistant to speed up execution and unblock specific implementation issues.
+
+How AI was used in this project:
+- Scaffold and refine parts of API handlers and UI boilerplate.
+- Debug TypeScript, Next.js route typing, and build errors.
+- Improve documentation quality and consistency.
+- Review and iterate on architecture explanation and endpoint clarity.
+
+How AI was not used:
+- It did not choose the problem approach, stack, or project scope for me.
+- Final technical decisions, code review, and submission ownership remain mine.
 
 ### Notes
 - Caching is in-memory and instance-local.
